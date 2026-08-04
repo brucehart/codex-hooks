@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
+import urllib.request
 from decimal import Decimal
 from pathlib import Path
 from typing import NamedTuple
@@ -14,6 +16,10 @@ from typing import NamedTuple
 MILLION = Decimal("1000000")
 LONG_CONTEXT_THRESHOLD = 272_000
 PRICING_UPDATED = "2026-07-30"
+OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
+OPENROUTER_CACHE = Path.home() / ".cache" / "codex-hooks" / "api-cost" / "openrouter-models.json"
+OPENROUTER_CACHE_TTL = 60 * 60 * 24
+OPENROUTER_FETCH_TIMEOUT = 10
 
 
 class Rate(NamedTuple):
@@ -121,12 +127,59 @@ FLEX: dict[str, dict[str, Rate]] = {
 }
 
 RATES = {"standard": STANDARD, "fast": FAST, "flex": FLEX}
+OPENROUTER = "openrouter"
 TOKEN_FIELDS = (
     "input_tokens",
     "cached_input_tokens",
     "cache_write_input_tokens",
     "output_tokens",
 )
+
+
+def is_openrouter_model(model: str) -> bool:
+    return "/" in model
+
+
+def load_openrouter_models() -> dict[str, Rate]:
+    """Load OpenRouter's official per-token prices, normalized to per-1M."""
+    data: dict = {}
+    if OPENROUTER_CACHE.exists():
+        try:
+            data = json.loads(OPENROUTER_CACHE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            data = {}
+
+    if not data or time.time() - data.get("fetched_at", 0) > OPENROUTER_CACHE_TTL:
+        try:
+            with urllib.request.urlopen(
+                OPENROUTER_MODELS_URL, timeout=OPENROUTER_FETCH_TIMEOUT
+            ) as response:
+                raw = json.loads(response.read().decode("utf-8"))
+            data = {"fetched_at": time.time(), "models": raw.get("data", [])}
+            OPENROUTER_CACHE.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+            OPENROUTER_CACHE.write_text(json.dumps(data), encoding="utf-8")
+        except Exception:
+            pass
+
+    rates: dict[str, Rate] = {}
+    for entry in data.get("models", []) if data else []:
+        model_id = entry.get("id")
+        pricing = entry.get("pricing") or {}
+        if not model_id or not pricing:
+            continue
+        try:
+            # OpenRouter returns USD per token; the built-in tables use USD/M.
+            rates[model_id] = Rate(
+                Decimal(pricing.get("prompt", "0")) * MILLION,
+                Decimal(pricing.get("input_cache_read", "0")) * MILLION,
+                Decimal(pricing["input_cache_write"]) * MILLION
+                if pricing.get("input_cache_write") is not None
+                else None,
+                Decimal(pricing.get("completion", "0")) * MILLION,
+            )
+        except (KeyError, ValueError, TypeError):
+            continue
+    return rates
 
 
 def normalize_tier(value: object) -> str:
@@ -170,6 +223,7 @@ def estimate(transcript: Path, fallback_model: str) -> Estimate:
     models_used: set[str] = set()
     unsupported: set[str] = set()
     current_model = fallback_model
+    openrouter_rates: dict[str, Rate] = {}
     current_tier = "standard"
     previous_total: dict[str, int] | None = None
 
@@ -202,6 +256,16 @@ def estimate(transcript: Path, fallback_model: str) -> Estimate:
                 continue
 
             models_used.add(current_model)
+            if is_openrouter_model(current_model):
+                if not openrouter_rates:
+                    openrouter_rates = load_openrouter_models()
+                prices = openrouter_rates.get(current_model)
+                if prices is None:
+                    unsupported.add(f"{current_model}/{OPENROUTER}")
+                    continue
+                total_cost += request_cost(usage, prices)
+                continue
+
             model_rates = RATES[current_tier].get(current_model)
             if model_rates is None:
                 unsupported.add(f"{current_model}/{current_tier}")

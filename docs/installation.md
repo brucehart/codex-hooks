@@ -48,7 +48,8 @@ The generated hook group is equivalent to:
 
 The actual generated command uses absolute paths. `SessionEnd` has a maximum
 three-second timeout, so the estimator performs only local, streaming JSONL
-parsing and never fetches pricing over the network.
+parsing. When an OpenRouter model is used, it fetches public pricing from
+OpenRouter's official models endpoint and caches it for 24 hours.
 
 ## Hook trust
 

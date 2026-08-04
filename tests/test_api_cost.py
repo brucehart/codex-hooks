@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from decimal import Decimal
 from pathlib import Path
+from unittest.mock import patch
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -31,6 +32,34 @@ def token_event(input_tokens: int, cached: int, writes: int, output: int) -> dic
 
 
 class CostTests(unittest.TestCase):
+    def test_openrouter_prices_are_converted_from_per_token(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            cache = Path(directory) / "models.json"
+            cache.write_text(
+                json.dumps(
+                    {
+                        "fetched_at": 9_999_999_999,
+                        "models": [
+                            {
+                                "id": "deepseek/example",
+                                "pricing": {
+                                    "prompt": "0.00000009",
+                                    "completion": "0.00000018",
+                                    "input_cache_read": "0.000000018",
+                                },
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch.object(codex_api_cost, "OPENROUTER_CACHE", cache):
+                prices = codex_api_cost.load_openrouter_models()["deepseek/example"]
+
+        self.assertEqual(prices.input, Decimal("0.09"))
+        self.assertEqual(prices.cached_input, Decimal("0.018"))
+        self.assertEqual(prices.output, Decimal("0.18"))
+
     def test_request_cost_accounts_for_cache_reads_and_writes(self) -> None:
         usage = {
             "input_tokens": 1_000,

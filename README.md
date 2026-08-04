@@ -10,8 +10,8 @@ API-equivalent token cost: $1.7318 (gpt-5.6-sol; token usage only)
 
 Codex already records token usage in its local session transcript. This project
 adds a user-level `SessionEnd` hook that reads those counters, applies current
-OpenAI API token rates, and defers the result until after the terminal UI has
-fully exited.
+OpenAI API token rates, plus live public rates for OpenRouter models, and defers
+the result until after the terminal UI has fully exited.
 
 ## Why output is deferred
 
@@ -82,6 +82,10 @@ For other models, cache-write tokens remain part of ordinary input. Reasoning
 tokens are not added separately because they are already included in the
 reported output-token total.
 
+OpenRouter model prices are fetched from its official `/api/v1/models` endpoint
+and cached for 24 hours. OpenRouter publishes those rates per token; the hook
+converts them to the same per-million-token units used by the built-in tables.
+
 The parser follows model and service-tier changes across the transcript and
 deduplicates repeated cumulative token events. Fast/priority, Flex, cache
 writes, and long-context rate bands are supported where public rates exist.
@@ -96,9 +100,9 @@ writes, and long-context rate bands are supported where public rates exist.
   being assigned a guessed rate.
 - Codex documents the local transcript as a convenience rather than a stable
   hook interface, so future CLI releases may require parser updates.
-- Prices are a checked-in snapshot last updated **2026-07-30**. Compare them
-  with the [official OpenAI API pricing page][pricing] before using estimates
-  for budgeting.
+- Built-in OpenAI prices are a checked-in snapshot last updated **2026-07-30**.
+  OpenRouter prices are refreshed daily. Compare both with their official
+  pricing sources before using estimates for budgeting.
 
 ## Documentation
 
