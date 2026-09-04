@@ -32,6 +32,73 @@ def token_event(input_tokens: int, cached: int, writes: int, output: int) -> dic
 
 
 class CostTests(unittest.TestCase):
+    def test_current_flagship_rates_match_official_pricing(self) -> None:
+        expected = {
+            "standard": {
+                "gpt-6-astra": {
+                    "short": ("10", "1", "12.5", "50"),
+                    "long": ("20", "2", "25", "75"),
+                },
+                "gpt-5.6-sol": {
+                    "short": ("4", ".4", "5", "20"),
+                    "long": ("8", ".8", "10", "30"),
+                },
+                "gpt-5.6-terra": {
+                    "short": ("2", ".2", "2.5", "12"),
+                    "long": ("4", ".4", "5", "18"),
+                },
+                "gpt-5.6-luna": {
+                    "short": (".2", ".02", ".25", "1.2"),
+                    "long": (".4", ".04", ".5", "1.8"),
+                },
+            },
+            "fast": {
+                "gpt-6-astra": {
+                    "short": ("20", "2", "25", "100"),
+                    "long": ("40", "4", "50", "150"),
+                },
+                "gpt-5.6-sol": {
+                    "short": ("8", ".8", "10", "40"),
+                    "long": ("16", "1.6", "20", "60"),
+                },
+                "gpt-5.6-terra": {
+                    "short": ("4", ".4", "5", "24"),
+                    "long": ("8", ".8", "10", "36"),
+                },
+                "gpt-5.6-luna": {
+                    "short": (".4", ".04", ".5", "2.4"),
+                    "long": (".8", ".08", "1", "3.6"),
+                },
+            },
+            "flex": {
+                "gpt-6-astra": {
+                    "short": ("5", ".5", "6.25", "25"),
+                    "long": ("10", "1", "12.5", "37.5"),
+                },
+                "gpt-5.6-sol": {
+                    "short": ("2", ".2", "2.5", "10"),
+                    "long": ("4", ".4", "5", "15"),
+                },
+                "gpt-5.6-terra": {
+                    "short": ("1", ".1", "1.25", "6"),
+                    "long": ("2", ".2", "2.5", "9"),
+                },
+                "gpt-5.6-luna": {
+                    "short": (".1", ".01", ".125", ".6"),
+                    "long": (".2", ".02", ".25", ".9"),
+                },
+            },
+        }
+
+        for tier, models in expected.items():
+            for model, bands in models.items():
+                for band, values in bands.items():
+                    with self.subTest(tier=tier, model=model, band=band):
+                        self.assertEqual(
+                            codex_api_cost.RATES[tier][model][band],
+                            codex_api_cost.Rate(*(Decimal(value) for value in values)),
+                        )
+
     def test_openrouter_prices_are_converted_from_per_token(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             cache = Path(directory) / "models.json"
@@ -68,7 +135,7 @@ class CostTests(unittest.TestCase):
             "output_tokens": 10,
         }
         prices = codex_api_cost.STANDARD["gpt-5.6-sol"]["short"]
-        self.assertEqual(codex_api_cost.request_cost(usage, prices), Decimal("0.003625"))
+        self.assertEqual(codex_api_cost.request_cost(usage, prices), Decimal("0.00286"))
 
     def test_estimate_deduplicates_repeated_totals(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -92,7 +159,7 @@ class CostTests(unittest.TestCase):
 
             result = codex_api_cost.estimate(transcript, "fallback")
 
-        self.assertEqual(result.cost, Decimal("0.007250"))
+        self.assertEqual(result.cost, Decimal("0.00572"))
         self.assertEqual(result.models, {"gpt-5.6-sol"})
         self.assertEqual(result.unsupported, set())
 

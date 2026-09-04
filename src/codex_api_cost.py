@@ -15,7 +15,7 @@ from typing import NamedTuple
 
 MILLION = Decimal("1000000")
 LONG_CONTEXT_THRESHOLD = 272_000
-PRICING_UPDATED = "2026-07-30"
+PRICING_UPDATED = "2026-09-04"
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 OPENROUTER_CACHE = Path.home() / ".cache" / "codex-hooks" / "api-cost" / "openrouter-models.json"
 OPENROUTER_CACHE_TTL = 60 * 60 * 24
@@ -46,10 +46,15 @@ def rate(input_: str, cached: str, output: str, write: str | None = None) -> Rat
 
 # USD per 1M tokens. Source: https://developers.openai.com/api/docs/pricing
 # "short" applies to requests with at most 272K input tokens.
+# GPT-5.6 Sol pricing is promotional through at least 2026-11-21.
 STANDARD: dict[str, dict[str, Rate]] = {
+    "gpt-6-astra": {
+        "short": rate("10", "1", "50", "12.5"),
+        "long": rate("20", "2", "75", "25"),
+    },
     "gpt-5.6-sol": {
-        "short": rate("5", ".5", "30", "6.25"),
-        "long": rate("10", "1", "45", "12.5"),
+        "short": rate("4", ".4", "20", "5"),
+        "long": rate("8", ".8", "30", "10"),
     },
     "gpt-5.6-terra": {
         "short": rate("2", ".2", "12", "2.5"),
@@ -82,9 +87,22 @@ STANDARD: dict[str, dict[str, Rate]] = {
 }
 
 FAST: dict[str, dict[str, Rate]] = {
-    "gpt-5.6-sol": {"short": rate("10", "1", "60", "12.5")},
-    "gpt-5.6-terra": {"short": rate("4", ".4", "24", "5")},
-    "gpt-5.6-luna": {"short": rate(".4", ".04", "2.4", ".5")},
+    "gpt-6-astra": {
+        "short": rate("20", "2", "100", "25"),
+        "long": rate("40", "4", "150", "50"),
+    },
+    "gpt-5.6-sol": {
+        "short": rate("8", ".8", "40", "10"),
+        "long": rate("16", "1.6", "60", "20"),
+    },
+    "gpt-5.6-terra": {
+        "short": rate("4", ".4", "24", "5"),
+        "long": rate("8", ".8", "36", "10"),
+    },
+    "gpt-5.6-luna": {
+        "short": rate(".4", ".04", "2.4", ".5"),
+        "long": rate(".8", ".08", "3.6", "1"),
+    },
     "gpt-5.5": {"short": rate("12.5", "1.25", "75")},
     "gpt-5.4": {"short": rate("5", ".5", "30")},
     "gpt-5.4-mini": {"short": rate("1.5", ".15", "9")},
@@ -99,9 +117,13 @@ FAST: dict[str, dict[str, Rate]] = {
 }
 
 FLEX: dict[str, dict[str, Rate]] = {
+    "gpt-6-astra": {
+        "short": rate("5", ".5", "25", "6.25"),
+        "long": rate("10", "1", "37.5", "12.5"),
+    },
     "gpt-5.6-sol": {
-        "short": rate("2.5", ".25", "15", "3.125"),
-        "long": rate("5", ".5", "22.5", "6.25"),
+        "short": rate("2", ".2", "10", "2.5"),
+        "long": rate("4", ".4", "15", "5"),
     },
     "gpt-5.6-terra": {
         "short": rate("1", ".1", "6", "1.25"),
