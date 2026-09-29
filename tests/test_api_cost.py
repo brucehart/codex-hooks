@@ -32,6 +32,32 @@ def token_event(input_tokens: int, cached: int, writes: int, output: int) -> dic
 
 
 class CostTests(unittest.TestCase):
+    def test_gpt_61_sol_estimates_tiers_and_context_boundary(self) -> None:
+        # Includes 400 cache reads, 100 cache writes, and 10 output tokens.
+        # At 272K input tokens the short rates still apply.
+        cases = [(1_000, "0.00139"), (272_000, "0.54339"), (272_001, "1.086734")]
+        for tier, multiplier in [(None, "1"), ("fast", "2"), ("priority", "2"), ("flex", ".5")]:
+            for input_tokens, standard_cost in cases:
+                with self.subTest(tier=tier, input_tokens=input_tokens):
+                    with tempfile.TemporaryDirectory() as directory:
+                        transcript = Path(directory) / "rollout.jsonl"
+                        rows = [
+                            {
+                                "type": "turn_context",
+                                "payload": {"model": "gpt-6.1-sol", "service_tier": tier},
+                            },
+                            token_event(input_tokens, 400, 100, 10),
+                        ]
+                        transcript.write_text(
+                            "".join(json.dumps(row) + "\n" for row in rows),
+                            encoding="utf-8",
+                        )
+                        result = codex_api_cost.estimate(transcript, "fallback")
+
+                    self.assertEqual(result.cost, Decimal(standard_cost) * Decimal(multiplier))
+                    self.assertEqual(result.models, {"gpt-6.1-sol"})
+                    self.assertEqual(result.unsupported, set())
+
     def test_current_flagship_rates_match_official_pricing(self) -> None:
         expected = {
             "standard": {
