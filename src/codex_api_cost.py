@@ -15,7 +15,7 @@ from typing import NamedTuple
 
 MILLION = Decimal("1000000")
 LONG_CONTEXT_THRESHOLD = 272_000
-PRICING_UPDATED = "2026-09-29"
+PRICING_UPDATED = "2026-10-04"
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 OPENROUTER_CACHE = Path.home() / ".cache" / "codex-hooks" / "api-cost" / "openrouter-models.json"
 OPENROUTER_CACHE_TTL = 60 * 60 * 24
@@ -52,6 +52,10 @@ STANDARD: dict[str, dict[str, Rate]] = {
         "short": rate("2", ".1", "10", "2.5"),
         "long": rate("4", ".2", "15", "5"),
     },
+    "gpt-6-luna": {
+        "short": rate(".1", ".01", ".5", ".125"),
+        "long": rate(".2", ".02", ".75", ".25"),
+    },
     "gpt-6-astra": {
         "short": rate("10", "1", "50", "12.5"),
         "long": rate("20", "2", "75", "25"),
@@ -68,6 +72,7 @@ STANDARD: dict[str, dict[str, Rate]] = {
         "short": rate(".2", ".02", "1.2", ".25"),
         "long": rate(".4", ".04", "1.8", ".5"),
     },
+    "gpt-5.6-cyber": {"short": rate("12.5", "1.25", "75", "15.625")},
     "gpt-5.5": {
         "short": rate("5", ".5", "30"),
         "long": rate("10", "1", "45"),
@@ -95,6 +100,10 @@ FAST: dict[str, dict[str, Rate]] = {
         "short": rate("4", ".2", "20", "5"),
         "long": rate("8", ".4", "30", "10"),
     },
+    "gpt-6-luna": {
+        "short": rate(".2", ".02", "1", ".25"),
+        "long": rate(".4", ".04", "1.5", ".5"),
+    },
     "gpt-6-astra": {
         "short": rate("20", "2", "100", "25"),
         "long": rate("40", "4", "150", "50"),
@@ -111,6 +120,7 @@ FAST: dict[str, dict[str, Rate]] = {
         "short": rate(".4", ".04", "2.4", ".5"),
         "long": rate(".8", ".08", "3.6", "1"),
     },
+    "gpt-5.6-cyber": {"short": rate("25", "2.5", "150", "31.25")},
     "gpt-5.5": {"short": rate("12.5", "1.25", "75")},
     "gpt-5.4": {"short": rate("5", ".5", "30")},
     "gpt-5.4-mini": {"short": rate("1.5", ".15", "9")},
@@ -129,6 +139,10 @@ FLEX: dict[str, dict[str, Rate]] = {
         "short": rate("1", ".05", "5", "1.25"),
         "long": rate("2", ".1", "7.5", "2.5"),
     },
+    "gpt-6-luna": {
+        "short": rate(".05", ".005", ".25", ".0625"),
+        "long": rate(".1", ".01", ".375", ".125"),
+    },
     "gpt-6-astra": {
         "short": rate("5", ".5", "25", "6.25"),
         "long": rate("10", "1", "37.5", "12.5"),
@@ -145,6 +159,7 @@ FLEX: dict[str, dict[str, Rate]] = {
         "short": rate(".1", ".01", ".6", ".125"),
         "long": rate(".2", ".02", ".9", ".25"),
     },
+    "gpt-5.6-cyber": {"short": rate("6.25", ".625", "37.5", "7.8125")},
     "gpt-5.5": {
         "short": rate("2.5", ".25", "15"),
         "long": rate("5", ".5", "22.5"),
