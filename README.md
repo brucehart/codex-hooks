@@ -100,7 +100,8 @@ writes, and long-context rate bands are supported where public rates exist.
   being assigned a guessed rate.
 - Codex documents the local transcript as a convenience rather than a stable
   hook interface, so future CLI releases may require parser updates.
-- Built-in OpenAI prices are a checked-in snapshot last updated **2026-09-04**.
+- Built-in OpenAI prices are a checked-in snapshot last updated **2026-09-29**,
+  including GPT-6.1 Sol Standard, Fast, and Flex rates for both context bands.
   OpenRouter prices are refreshed daily. Compare both with their official
   pricing sources before using estimates for budgeting.
 

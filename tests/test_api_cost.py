@@ -32,12 +32,42 @@ def token_event(input_tokens: int, cached: int, writes: int, output: int) -> dic
 
 
 class CostTests(unittest.TestCase):
+    def test_gpt_61_sol_estimates_tiers_and_context_boundary(self) -> None:
+        # Includes 400 cache reads, 100 cache writes, and 10 output tokens.
+        # At 272K input tokens the short rates still apply.
+        cases = [(1_000, "0.00139"), (272_000, "0.54339"), (272_001, "1.086734")]
+        for tier, multiplier in [(None, "1"), ("fast", "2"), ("priority", "2"), ("flex", ".5")]:
+            for input_tokens, standard_cost in cases:
+                with self.subTest(tier=tier, input_tokens=input_tokens):
+                    with tempfile.TemporaryDirectory() as directory:
+                        transcript = Path(directory) / "rollout.jsonl"
+                        rows = [
+                            {
+                                "type": "turn_context",
+                                "payload": {"model": "gpt-6.1-sol", "service_tier": tier},
+                            },
+                            token_event(input_tokens, 400, 100, 10),
+                        ]
+                        transcript.write_text(
+                            "".join(json.dumps(row) + "\n" for row in rows),
+                            encoding="utf-8",
+                        )
+                        result = codex_api_cost.estimate(transcript, "fallback")
+
+                    self.assertEqual(result.cost, Decimal(standard_cost) * Decimal(multiplier))
+                    self.assertEqual(result.models, {"gpt-6.1-sol"})
+                    self.assertEqual(result.unsupported, set())
+
     def test_current_flagship_rates_match_official_pricing(self) -> None:
         expected = {
             "standard": {
                 "gpt-6-astra": {
                     "short": ("10", "1", "12.5", "50"),
                     "long": ("20", "2", "25", "75"),
+                },
+                "gpt-6-luna": {
+                    "short": (".1", ".01", ".125", ".5"),
+                    "long": (".2", ".02", ".25", ".75"),
                 },
                 "gpt-5.6-sol": {
                     "short": ("4", ".4", "5", "20"),
@@ -51,11 +81,18 @@ class CostTests(unittest.TestCase):
                     "short": (".2", ".02", ".25", "1.2"),
                     "long": (".4", ".04", ".5", "1.8"),
                 },
+                "gpt-5.6-cyber": {
+                    "short": ("12.5", "1.25", "15.625", "75"),
+                },
             },
             "fast": {
                 "gpt-6-astra": {
                     "short": ("20", "2", "25", "100"),
                     "long": ("40", "4", "50", "150"),
+                },
+                "gpt-6-luna": {
+                    "short": (".2", ".02", ".25", "1"),
+                    "long": (".4", ".04", ".5", "1.5"),
                 },
                 "gpt-5.6-sol": {
                     "short": ("8", ".8", "10", "40"),
@@ -69,11 +106,18 @@ class CostTests(unittest.TestCase):
                     "short": (".4", ".04", ".5", "2.4"),
                     "long": (".8", ".08", "1", "3.6"),
                 },
+                "gpt-5.6-cyber": {
+                    "short": ("25", "2.5", "31.25", "150"),
+                },
             },
             "flex": {
                 "gpt-6-astra": {
                     "short": ("5", ".5", "6.25", "25"),
                     "long": ("10", "1", "12.5", "37.5"),
+                },
+                "gpt-6-luna": {
+                    "short": (".05", ".005", ".0625", ".25"),
+                    "long": (".1", ".01", ".125", ".375"),
                 },
                 "gpt-5.6-sol": {
                     "short": ("2", ".2", "2.5", "10"),
@@ -86,6 +130,9 @@ class CostTests(unittest.TestCase):
                 "gpt-5.6-luna": {
                     "short": (".1", ".01", ".125", ".6"),
                     "long": (".2", ".02", ".25", ".9"),
+                },
+                "gpt-5.6-cyber": {
+                    "short": ("6.25", ".625", "7.8125", "37.5"),
                 },
             },
         }
