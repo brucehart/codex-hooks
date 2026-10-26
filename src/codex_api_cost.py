@@ -15,7 +15,7 @@ from typing import NamedTuple
 
 MILLION = Decimal("1000000")
 LONG_CONTEXT_THRESHOLD = 272_000
-PRICING_UPDATED = "2026-10-04"
+PRICING_UPDATED = "2026-10-26"
 OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 OPENROUTER_CACHE = Path.home() / ".cache" / "codex-hooks" / "api-cost" / "openrouter-models.json"
 OPENROUTER_CACHE_TTL = 60 * 60 * 24
@@ -48,6 +48,10 @@ def rate(input_: str, cached: str, output: str, write: str | None = None) -> Rat
 # "short" applies to requests with at most 272K input tokens.
 # GPT-5.6 Sol pricing is promotional through at least 2026-11-21.
 STANDARD: dict[str, dict[str, Rate]] = {
+    "gpt-6.1-terra": {
+        "short": rate("1", ".05", "5", "1.25"),
+        "long": rate("2", ".1", "7.5", "2.5"),
+    },
     "gpt-6.1-sol": {
         "short": rate("2", ".1", "10", "2.5"),
         "long": rate("4", ".2", "15", "5"),
@@ -96,6 +100,10 @@ STANDARD: dict[str, dict[str, Rate]] = {
 }
 
 FAST: dict[str, dict[str, Rate]] = {
+    "gpt-6.1-terra": {
+        "short": rate("2", ".1", "10", "2.5"),
+        "long": rate("4", ".2", "15", "5"),
+    },
     "gpt-6.1-sol": {
         "short": rate("4", ".2", "20", "5"),
         "long": rate("8", ".4", "30", "10"),
@@ -135,6 +143,10 @@ FAST: dict[str, dict[str, Rate]] = {
 }
 
 FLEX: dict[str, dict[str, Rate]] = {
+    "gpt-6.1-terra": {
+        "short": rate(".5", ".025", "2.5", ".625"),
+        "long": rate("1", ".05", "3.75", "1.25"),
+    },
     "gpt-6.1-sol": {
         "short": rate("1", ".05", "5", "1.25"),
         "long": rate("2", ".1", "7.5", "2.5"),

@@ -32,6 +32,31 @@ def token_event(input_tokens: int, cached: int, writes: int, output: int) -> dic
 
 
 class CostTests(unittest.TestCase):
+    def test_gpt_61_terra_estimates_tiers_and_context_boundary(self) -> None:
+        # Includes cache reads and 30-minute cache writes on either side of 272K.
+        cases = [(1_000, "0.000695"), (272_000, "0.271695"), (272_001, "0.543367")]
+        for tier, multiplier in [(None, "1"), ("fast", "2"), ("priority", "2"), ("flex", ".5")]:
+            for input_tokens, standard_cost in cases:
+                with self.subTest(tier=tier, input_tokens=input_tokens):
+                    with tempfile.TemporaryDirectory() as directory:
+                        transcript = Path(directory) / "rollout.jsonl"
+                        rows = [
+                            {
+                                "type": "turn_context",
+                                "payload": {"model": "gpt-6.1-terra", "service_tier": tier},
+                            },
+                            token_event(input_tokens, 400, 100, 10),
+                        ]
+                        transcript.write_text(
+                            "".join(json.dumps(row) + "\n" for row in rows),
+                            encoding="utf-8",
+                        )
+                        result = codex_api_cost.estimate(transcript, "fallback")
+
+                    self.assertEqual(result.cost, Decimal(standard_cost) * Decimal(multiplier))
+                    self.assertEqual(result.models, {"gpt-6.1-terra"})
+                    self.assertEqual(result.unsupported, set())
+
     def test_gpt_61_sol_estimates_tiers_and_context_boundary(self) -> None:
         # Includes 400 cache reads, 100 cache writes, and 10 output tokens.
         # At 272K input tokens the short rates still apply.
@@ -61,6 +86,10 @@ class CostTests(unittest.TestCase):
     def test_current_flagship_rates_match_official_pricing(self) -> None:
         expected = {
             "standard": {
+                "gpt-6.1-terra": {
+                    "short": ("1", ".05", "1.25", "5"),
+                    "long": ("2", ".1", "2.5", "7.5"),
+                },
                 "gpt-6-astra": {
                     "short": ("10", "1", "12.5", "50"),
                     "long": ("20", "2", "25", "75"),
@@ -86,6 +115,10 @@ class CostTests(unittest.TestCase):
                 },
             },
             "fast": {
+                "gpt-6.1-terra": {
+                    "short": ("2", ".1", "2.5", "10"),
+                    "long": ("4", ".2", "5", "15"),
+                },
                 "gpt-6-astra": {
                     "short": ("20", "2", "25", "100"),
                     "long": ("40", "4", "50", "150"),
@@ -111,6 +144,10 @@ class CostTests(unittest.TestCase):
                 },
             },
             "flex": {
+                "gpt-6.1-terra": {
+                    "short": (".5", ".025", ".625", "2.5"),
+                    "long": ("1", ".05", "1.25", "3.75"),
+                },
                 "gpt-6-astra": {
                     "short": ("5", ".5", "6.25", "25"),
                     "long": ("10", "1", "12.5", "37.5"),
